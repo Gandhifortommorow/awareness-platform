@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/awareness-platform/static/css/main.e6c13ad2.css",
+    "main.js": "/awareness-platform/static/js/main.acb334eb.js",
+    "static/js/453.8ed0087e.chunk.js": "/awareness-platform/static/js/453.8ed0087e.chunk.js",
+    "index.html": "/awareness-platform/index.html",
+    "main.e6c13ad2.css.map": "/awareness-platform/static/css/main.e6c13ad2.css.map",
+    "main.acb334eb.js.map": "/awareness-platform/static/js/main.acb334eb.js.map",
+    "453.8ed0087e.chunk.js.map": "/awareness-platform/static/js/453.8ed0087e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.acb334eb.js"
+  ]
+}
