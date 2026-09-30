@@ -6,7 +6,7 @@ import {
 import {
   Menu, X, Heart, ShieldCheck, Users, Landmark, Sun, GraduationCap, Coins,
   Leaf, Hammer, Building2, Handshake, Flag, Compass, Gauge, Scale,
-  ChevronDown, ChevronRight, ChevronLeft, AtSign, Mail,
+  ChevronDown, ChevronRight, ChevronLeft,
   Check, RotateCcw, Sparkles, Award,
 } from "lucide-react";
 
@@ -24,7 +24,7 @@ const projectData = {
     name: "Gandhi for Tomorrow",
     tagline: "Ancient principles. Modern problems. Young people taking action.",
     event: "Global Youth Peace Fest (GYPF) 2026, Chandigarh",
-    instagramUrl: null, // add the real profile URL here
+    instagramUrl: "https://www.instagram.com/swaraj_shakti_ggps/", // shown in the footer "Connect" column
     contactEmail: null, // add a real contact address here
   },
   methodology: {
@@ -572,6 +572,8 @@ function GlobalStyles() {
       .nav-link { padding: 6px 2px; font-size: 14.5px; color: var(--ink-soft); border-bottom: 2px solid transparent; white-space: nowrap; }
       .nav-link:hover { color: var(--ink); }
       .nav-link.active { color: var(--ink); border-color: var(--moss); }
+      .footer-link { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; color: inherit; text-decoration: none; }
+      .footer-link:hover { color: var(--ink); text-decoration: underline; }
 
       .divider { height: 1px; background: var(--line); width: 100%; border: none; margin: 0; }
       .vline { width: 2px; background: var(--line); }
@@ -614,7 +616,6 @@ function GlobalStyles() {
 
       .day-cell { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; background: var(--white); }
       .day-cell.done { background: var(--moss); color: var(--white); border-color: var(--moss); }
-      .day-cell.locked { opacity: 0.4; cursor: not-allowed; }
 
       @media (prefers-reduced-motion: reduce) {
         .gft *, .gft *::before, .gft *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
@@ -673,7 +674,20 @@ function Nav({ page, setPage, onPresent }) {
   );
 }
 
+// Inline glyph: lucide-react v1 removed its brand icons, so this avoids depending on one.
+function InstagramGlyph({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
 function Footer({ setPage }) {
+  const igUrl = projectData.meta.instagramUrl;
+  const igHandle = igUrl ? (igUrl.match(/instagram\.com\/([^/?#]+)/i) || [])[1] : null;
   return (
     <footer style={{ borderTop: "1px solid var(--line)", background: "var(--sand)", marginTop: 40 }}>
       <div className="gft-container" style={{ padding: "56px 20px", display: "grid", gap: 32, gridTemplateColumns: "1fr" }}>
@@ -693,8 +707,13 @@ function Footer({ setPage }) {
           <div>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Connect</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14.5, color: "var(--ink-soft)" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><AtSign size={15} /> Instagram handle to be added</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Mail size={15} /> Contact email to be added</span>
+              {igUrl ? (
+                <a href={igUrl} target="_blank" rel="noopener noreferrer" className="footer-link">
+                  <InstagramGlyph size={15} /> {igHandle ? `@${igHandle}` : "Instagram"}
+                </a>
+              ) : (
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}><InstagramGlyph size={15} /> Instagram handle to be added</span>
+              )}
             </div>
           </div>
           <div>
@@ -885,6 +904,12 @@ function HomePage({ setPage }) {
 function PrincipleModal({ p, onClose }) {
   const [selected, setSelected] = useState(null);
   useEffect(() => { setSelected(null); }, [p]);
+  useEffect(() => {
+    if (!p) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [p, onClose]);
   if (!p) return null;
   return (
     <div role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, background: "rgba(32,29,24,0.5)", zIndex: 60, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
@@ -1513,8 +1538,11 @@ function PledgeBoard() {
   const [mine, setMine] = useState([]);
   const [counts, setCounts] = useState({});
   const [ready, setReady] = useState(false);
+  // Bumped whenever this visitor changes a pledge, so a poll that started earlier can't overwrite the newer counts.
+  const writeVersion = useRef(0);
 
   const refreshCounts = async () => {
+    const startedAt = writeVersion.current;
     try {
       const listRes = await window.storage.list("pledge-entry:", true);
       const keys = (listRes && listRes.keys) || [];
@@ -1526,6 +1554,7 @@ function PledgeBoard() {
       }));
       const tally = {};
       entries.forEach((arr) => (arr || []).forEach((id) => { tally[id] = (tally[id] || 0) + 1; }));
+      if (writeVersion.current !== startedAt) return; // a pledge changed while this refresh was in flight
       setCounts(tally);
     } catch (e) {
       // if listing fails, leave whatever counts are already showing rather than clearing them
@@ -1570,9 +1599,11 @@ function PledgeBoard() {
     const next = has ? mine.filter((x) => x !== id) : [...mine, id];
     setMine(next);
     setCounts((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) + (has ? -1 : 1)) }));
+    writeVersion.current += 1;
     (async () => {
       try { await window.storage.set(`pledge-entry:${visitorId}`, JSON.stringify(next), true); }
       catch (e) { console.error("pledge write failed", e); }
+      finally { writeVersion.current += 1; }
     })();
   };
 
@@ -1584,9 +1615,11 @@ function PledgeBoard() {
       return next;
     });
     setMine([]);
+    writeVersion.current += 1;
     (async () => {
       try { await window.storage.set(`pledge-entry:${visitorId}`, JSON.stringify([]), true); }
       catch (e) { console.error("pledge reset failed", e); }
+      finally { writeVersion.current += 1; }
     })();
   };
 
@@ -1612,36 +1645,19 @@ function PledgeBoard() {
   );
 }
 
-function localDateStr(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 function ThirtyDayChallengeTool() {
-  const [progress, setProgress, ready] = useCloudState("challenge-progress", { started: false, days: [], lastCompletedDate: null }, false);
-  const start = () => setProgress({ started: true, days: [], lastCompletedDate: null });
+  const [progress, setProgress, ready] = useCloudState("challenge-progress", { started: false, days: [] }, false);
+  const start = () => setProgress({ started: true, days: [] });
   const completeCount = progress.days.length;
-  const nextDay = completeCount + 1;
-  const today = localDateStr();
-  const doneToday = progress.lastCompletedDate === today;
+  const allDays = Array.from({ length: 30 }, (_, i) => i + 1);
+  const nextDay = allDays.find((d) => !progress.days.includes(d));
 
-  const markNext = () => {
-    const now = localDateStr();
+  // Every day is open at any time: tap a day to tick it off, tap it again to undo.
+  const toggleDay = (d) => {
     setProgress((p) => {
-      const alreadyDoneToday = p.lastCompletedDate === now;
-      const nd = p.days.length + 1;
-      if (alreadyDoneToday || nd > 30) return { ...p };
-      return { ...p, days: [...p.days, nd], lastCompletedDate: now };
-    });
-  };
-  const undoLast = () => {
-    const now = localDateStr();
-    setProgress((p) => {
-      const alreadyDoneToday = p.lastCompletedDate === now;
-      if (!alreadyDoneToday || p.days.length === 0) return { ...p };
-      return { ...p, days: p.days.slice(0, -1), lastCompletedDate: null };
+      const has = p.days.includes(d);
+      const days = has ? p.days.filter((x) => x !== d) : [...p.days, d].sort((x, y) => x - y);
+      return { ...p, days };
     });
   };
 
@@ -1651,7 +1667,7 @@ function ThirtyDayChallengeTool() {
     return (
       <div>
         <div className="gft-serif" style={{ fontSize: 22 }}>The 30-day action challenge</div>
-        <p style={{ marginTop: 10, fontSize: 14.5, color: "var(--ink-soft)" }}>Thirty small, Gandhian-inspired actions — one unlocks each day, in order. Your progress is saved.</p>
+        <p style={{ marginTop: 10, fontSize: 14.5, color: "var(--ink-soft)" }}>Thirty small, Gandhian-inspired actions — tap any day to tick it off, in any order. Your progress is saved.</p>
         <button onClick={start} className="btn btn-primary" style={{ marginTop: 16 }}>Start the challenge</button>
       </div>
     );
@@ -1663,21 +1679,11 @@ function ThirtyDayChallengeTool() {
       <div className="track" style={{ marginTop: 14 }}><div className="track-fill" style={{ width: `${(completeCount / 30) * 100}%` }} /></div>
       <p style={{ marginTop: 8, fontSize: 13.5, color: "var(--ink-soft)" }}>{completeCount} of 30 days complete</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8, marginTop: 20 }}>
-        {Array.from({ length: 30 }, (_, i) => i + 1).map((d) => {
-          const isDone = d <= completeCount;
-          const isUndoable = d === completeCount && doneToday;
-          const isNext = d === nextDay;
-          const isLocked = !isDone && (!isNext || doneToday);
-          const onClick = isUndoable ? undoLast : (isNext && !doneToday ? markNext : undefined);
+        {allDays.map((d) => {
+          const isDone = progress.days.includes(d);
           const activity = CHALLENGE_ACTIVITIES[(d - 1) % CHALLENGE_ACTIVITIES.length];
-          let tip;
-          if (isUndoable) tip = "Tap to undo today's entry";
-          else if (isDone) tip = activity;
-          else if (isNext && doneToday) tip = `You've already logged a day today — Day ${d} unlocks tomorrow`;
-          else if (isNext) tip = activity;
-          else tip = "Complete the days before this one first";
           return (
-            <button key={d} onClick={onClick} disabled={!onClick} className={`day-cell ${isDone ? "done" : ""} ${isLocked ? "locked" : ""}`} title={tip}>
+            <button key={d} onClick={() => toggleDay(d)} aria-pressed={isDone} aria-label={`Day ${d}`} className={`day-cell ${isDone ? "done" : ""}`} title={`Day ${d}: ${activity} — tap to ${isDone ? "undo" : "mark done"}`}>
               {isDone ? <Check size={14} /> : d}
             </button>
           );
@@ -1685,7 +1691,7 @@ function ThirtyDayChallengeTool() {
       </div>
       {completeCount < 30 && (
         <p style={{ marginTop: 16, fontSize: 13, color: "var(--ink-faint)" }}>
-          {doneToday ? `You've logged today — Day ${nextDay} unlocks tomorrow.` : `Today: ${CHALLENGE_ACTIVITIES[(nextDay - 1) % CHALLENGE_ACTIVITIES.length]}`}
+          {`Next up — Day ${nextDay}: ${CHALLENGE_ACTIVITIES[(nextDay - 1) % CHALLENGE_ACTIVITIES.length]}`}
         </p>
       )}
       {completeCount >= 30 && (
@@ -1694,7 +1700,7 @@ function ThirtyDayChallengeTool() {
           <span style={{ fontSize: 14.5, color: "var(--moss-deep)" }}>30 days done. The habit is the actual outcome — consider starting again with someone else.</span>
         </div>
       )}
-      <button onClick={() => setProgress({ started: false, days: [], lastCompletedDate: null })} className="btn-ghost" style={{ background: "none", marginTop: 16, fontSize: 13 }}>Reset my progress</button>
+      <button onClick={() => setProgress({ started: false, days: [] })} className="btn-ghost" style={{ background: "none", marginTop: 16, fontSize: 13 }}>Reset my progress</button>
     </div>
   );
 }
